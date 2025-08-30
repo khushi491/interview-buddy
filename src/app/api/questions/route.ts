@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Only initialize OpenAI if API key is available
+const openai = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' 
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +15,15 @@ export async function POST(request: NextRequest) {
         { error: 'Job role and experience level are required' },
         { status: 400 }
       );
+    }
+
+    // If OpenAI is not configured, use fallback questions
+    if (!openai) {
+      const fallbackQuestions = getFallbackQuestions(jobRole, experienceLevel);
+      return NextResponse.json({ 
+        questions: fallbackQuestions,
+        message: 'Using fallback questions (OpenAI API key not configured)'
+      });
     }
 
     const prompt = `Generate ${questionCount} interview questions for a ${experienceLevel} level ${jobRole} position. 
@@ -52,14 +62,20 @@ Format the response as a JSON array of strings, each containing one question.`;
     } catch (parseError) {
       // Fallback to sample questions if AI response parsing fails
       const fallbackQuestions = getFallbackQuestions(jobRole, experienceLevel);
-      return NextResponse.json({ questions: fallbackQuestions });
+      return NextResponse.json({ 
+        questions: fallbackQuestions,
+        message: 'AI response parsing failed, using fallback questions'
+      });
     }
   } catch (error) {
     console.error('Error generating questions:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate questions' },
-      { status: 500 }
-    );
+    // Use fallback questions on any error
+    const { jobRole, experienceLevel } = await request.json();
+    const fallbackQuestions = getFallbackQuestions(jobRole, experienceLevel);
+    return NextResponse.json({ 
+      questions: fallbackQuestions,
+      message: 'Error occurred, using fallback questions'
+    });
   }
 }
 
