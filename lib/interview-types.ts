@@ -11,6 +11,9 @@ export interface InterviewConfig {
     flow?: InterviewFlow;
     jobDescription?: string;
     interviewId?: string;
+    // New: Multi-interviewer support
+    useMultiInterviewers?: boolean;
+    honchoWorkspaceId?: string;
 }
 
 export interface InterviewState {
@@ -35,6 +38,10 @@ export interface InterviewState {
     isFlowOpen: boolean;
     showAnalysis: boolean;
     analysis: any;
+    // New: Multi-interviewer state
+    activeInterviewer?: 'soft' | 'hard' | 'both';
+    interviewerTurn?: 'soft' | 'hard';
+    collaborativeMode?: boolean;
 }
 
 export interface InterviewControls {
@@ -127,4 +134,37 @@ export interface InterviewLoadingStateProps {
 export interface InterviewCompleteStateProps {
     onGenerateAnalysis: () => Promise<void>;
     isAnalyzing: boolean;
-} 
+}
+
+// New: Multi-interviewer types
+export interface InterviewerPersona {
+    id: string;
+    name: string;
+    role: string;
+    description: string;
+    personality: string;
+    color: string;
+    avatar: string;
+}
+
+export interface MultiInterviewerMessage {
+    id: string;
+    content: string;
+    role: 'user' | 'assistant';
+    interviewerId?: string;
+    interviewerName?: string;
+    timestamp: Date;
+    metadata?: {
+        isCollaborative?: boolean;
+        responseToInterviewer?: string;
+    };
+}
+
+export interface CollaborativeInterviewState {
+    softInterviewer: InterviewerPersona;
+    hardInterviewer: InterviewerPersona;
+    currentTurn: 'soft' | 'hard' | 'collaborative';
+    conversationHistory: MultiInterviewerMessage[];
+    honchoSessionId?: string;
+    candidateFacts?: any[];
+}

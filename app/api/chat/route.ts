@@ -5,9 +5,20 @@ import { InterviewStateManager } from "@/lib/interview-state"
 export const maxDuration = 30
 
 export async function POST(req: Request) {
-  const { messages, interviewState } = await req.json()
+  const { messages, interviewState, useMultiInterviewers, honchoWorkspaceId, candidateId } = await req.json()
 
-  console.log("Chat API called with:", { messages, interviewState });
+  console.log("Chat API called with:", { messages, interviewState, useMultiInterviewers });
+
+  // If multi-interviewer mode is requested, delegate to collaborative API
+  if (useMultiInterviewers) {
+    console.log("Delegating to collaborative interview mode");
+    const collaborativeResponse = await fetch(`${req.url.replace('/chat', '/chat/collaborative')}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, interviewState, honchoWorkspaceId, candidateId })
+    });
+    return collaborativeResponse;
+  }
 
   // Reconstruct the state manager from the provided state
   const stateManager = new InterviewStateManager(

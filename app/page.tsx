@@ -41,6 +41,7 @@ export default function Home() {
     cv?: File;
     jobDescription?: string;
     interviewId?: string;
+    useMultiInterviewers?: boolean;
   }) => {
     console.log("Starting interview with config:", config);
 
@@ -100,6 +101,7 @@ export default function Home() {
           difficulty: config.difficulty,
           jobDescription: config.jobDescription,
           cvText,
+          useMultiInterviewers: config.useMultiInterviewers,
           transcript: {
             candidateName: candidateName,
             startTime: new Date().toISOString(),

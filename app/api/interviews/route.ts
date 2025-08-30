@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       resumeId,
       difficulty = "medium",
       jobDescription,
+      useMultiInterviewers = false,
     } = body;
 
     // Generate a demo user ID since we don't have authentication
@@ -66,6 +67,10 @@ export async function POST(req: NextRequest) {
       resumeId: resumeId || null,
       difficulty,
       jobDescription,
+      metadata: {
+        useMultiInterviewers,
+        honchoWorkspaceId: useMultiInterviewers ? `interview-${Date.now()}` : null,
+      },
     });
 
     return NextResponse.json({ interview });

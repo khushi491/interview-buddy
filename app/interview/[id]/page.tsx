@@ -6,6 +6,7 @@ import {
   VideoInterviewRoom,
   InterviewConfig,
 } from "@/components/interview";
+import { CollaborativeChatInterviewRoom } from "@/components/chat-interview/collaborative-chat-interview-room";
 import { InterviewCompletionState } from "@/components/interview-completion-state";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -133,6 +134,7 @@ export default function InterviewPage() {
     jobDescription: "", // This is now stored separately in the flow
     interviewId: interview.id,
     flow: interview.flow,
+    useMultiInterviewers: interview.metadata?.useMultiInterviewers || false,
   };
 
   // If interview is completed, show completion state
@@ -140,7 +142,16 @@ export default function InterviewPage() {
     return <InterviewCompletionState interview={interview} />;
   }
 
-  // Render the appropriate interview component based on mode
+  // Render the appropriate interview component based on mode and multi-interviewer setting
+  if (config.useMultiInterviewers && config.mode === "text") {
+    return (
+      <CollaborativeChatInterviewRoom
+        config={config}
+        cvText={interview.cvText}
+      />
+    );
+  }
+
   switch (config.mode) {
     case "video":
       return <VideoInterviewRoom config={config} cvText={interview.cvText} />;

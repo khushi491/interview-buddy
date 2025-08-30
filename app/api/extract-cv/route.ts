@@ -100,7 +100,13 @@ export async function POST(req: NextRequest) {
         let resumeId: string | undefined = undefined;
         try {
             const demoUserId = `demo-user-${Date.now()}`;
-            const resume = await storage.createResume(demoUserId, extractedText.trim());
+            const resume = await storage.createResume(
+                demoUserId,
+                extractedText.trim(),
+                file.name,
+                file.size,
+                file.type
+            );
             resumeId = resume.id;
         } catch (saveErr) {
             // Non-fatal: we still return extracted content

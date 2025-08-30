@@ -1,5 +1,9 @@
-// Simple in-memory storage to replace database functionality
-interface Interview {
+import connectDB from './mongodb';
+import Interview from './models/Interview';
+import Resume from './models/Resume';
+
+// MongoDB-based storage to replace in-memory functionality
+export interface Interview {
     id: string;
     userId: string;
     type: string;
@@ -14,6 +18,7 @@ interface Interview {
     resumeId?: string;
     difficulty?: string;
     jobDescription?: string;
+    metadata?: any;
     createdAt: string;
     completedAt?: string;
     duration?: number;
@@ -21,137 +26,273 @@ interface Interview {
     feedback?: string;
 }
 
-interface Resume {
+export interface Resume {
     id: string;
     userId: string;
     content: string;
+    filename?: string;
+    fileSize?: number;
+    mimeType?: string;
     createdAt: string;
 }
 
-class InMemoryStorage {
-    private interviews: Map<string, Interview> = new Map();
-    private resumes: Map<string, Resume> = new Map();
-    private userInterviews: Map<string, string[]> = new Map(); // userId -> interviewIds[]
-    private userResumes: Map<string, Resume[]> = new Map(); // userId -> resumeIds[]
-
+class MongoDBStorage {
     // Interview methods
     async createInterview(data: Omit<Interview, 'id' | 'createdAt'>): Promise<Interview> {
-        const id = `interview-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const interview: Interview = {
-            ...data,
-            id,
-            createdAt: new Date().toISOString(),
+        await connectDB();
+
+        const interview = new Interview({
+            userId: data.userId,
+            type: data.type,
+            position: data.position,
+            interviewType: data.interviewType,
+            flow: data.flow,
+            cvText: data.cvText,
+            mode: data.mode,
+            transcript: data.transcript,
+            status: data.status,
+            currentSectionIndex: data.currentSectionIndex,
+            resumeId: data.resumeId,
+            difficulty: data.difficulty,
+            jobDescription: data.jobDescription,
+            metadata: data.metadata,
+        });
+
+        const savedInterview = await interview.save();
+
+        // Convert to the expected format
+        return {
+            id: savedInterview._id.toString(),
+            userId: savedInterview.userId,
+            type: savedInterview.type,
+            position: savedInterview.position,
+            interviewType: savedInterview.interviewType,
+            flow: savedInterview.flow,
+            cvText: savedInterview.cvText,
+            mode: savedInterview.mode,
+            transcript: savedInterview.transcript,
+            status: savedInterview.status,
+            currentSectionIndex: savedInterview.currentSectionIndex,
+            resumeId: savedInterview.resumeId,
+            difficulty: savedInterview.difficulty,
+            jobDescription: savedInterview.jobDescription,
+            createdAt: savedInterview.createdAt.toISOString(),
+            completedAt: savedInterview.completedAt?.toISOString(),
+            duration: savedInterview.duration,
+            score: savedInterview.score,
+            feedback: savedInterview.feedback,
         };
-
-        this.interviews.set(id, interview);
-
-        // Track user's interviews
-        if (!this.userInterviews.has(data.userId)) {
-            this.userInterviews.set(data.userId, []);
-        }
-        this.userInterviews.get(data.userId)!.push(id);
-
-        return interview;
     }
 
     async getInterviewById(id: string): Promise<Interview | null> {
-        return this.interviews.get(id) || null;
+        await connectDB();
+
+        const interview = await Interview.findById(id);
+        if (!interview) return null;
+
+        return {
+            id: interview._id.toString(),
+            userId: interview.userId,
+            type: interview.type,
+            position: interview.position,
+            interviewType: interview.interviewType,
+            flow: interview.flow,
+            cvText: interview.cvText,
+            mode: interview.mode,
+            transcript: interview.transcript,
+            status: interview.status,
+            currentSectionIndex: interview.currentSectionIndex,
+            resumeId: interview.resumeId,
+            difficulty: interview.difficulty,
+            jobDescription: interview.jobDescription,
+            createdAt: interview.createdAt.toISOString(),
+            completedAt: interview.completedAt?.toISOString(),
+            duration: interview.duration,
+            score: interview.score,
+            feedback: interview.feedback,
+        };
     }
 
     async getInterviewsByUserId(userId: string): Promise<Interview[]> {
-        const interviewIds = this.userInterviews.get(userId) || [];
-        return interviewIds
-            .map(id => this.interviews.get(id))
-            .filter(Boolean) as Interview[];
+        await connectDB();
+
+        const interviews = await Interview.find({ userId }).sort({ createdAt: -1 });
+
+        return interviews.map(interview => ({
+            id: interview._id.toString(),
+            userId: interview.userId,
+            type: interview.type,
+            position: interview.position,
+            interviewType: interview.interviewType,
+            flow: interview.flow,
+            cvText: interview.cvText,
+            mode: interview.mode,
+            transcript: interview.transcript,
+            status: interview.status,
+            currentSectionIndex: interview.currentSectionIndex,
+            resumeId: interview.resumeId,
+            difficulty: interview.difficulty,
+            jobDescription: interview.jobDescription,
+            createdAt: interview.createdAt.toISOString(),
+            completedAt: interview.completedAt?.toISOString(),
+            duration: interview.duration,
+            score: interview.score,
+            feedback: interview.feedback,
+        }));
     }
 
     async getAllInterviews(): Promise<Interview[]> {
-        return Array.from(this.interviews.values());
+        await connectDB();
+
+        const interviews = await Interview.find().sort({ createdAt: -1 });
+
+        return interviews.map(interview => ({
+            id: interview._id.toString(),
+            userId: interview.userId,
+            type: interview.type,
+            position: interview.position,
+            interviewType: interview.interviewType,
+            flow: interview.flow,
+            cvText: interview.cvText,
+            mode: interview.mode,
+            transcript: interview.transcript,
+            status: interview.status,
+            currentSectionIndex: interview.currentSectionIndex,
+            resumeId: interview.resumeId,
+            difficulty: interview.difficulty,
+            jobDescription: interview.jobDescription,
+            createdAt: interview.createdAt.toISOString(),
+            completedAt: interview.completedAt?.toISOString(),
+            duration: interview.duration,
+            score: interview.score,
+            feedback: interview.feedback,
+        }));
     }
 
     async updateInterview(id: string, data: Partial<Interview>): Promise<Interview | null> {
-        const interview = this.interviews.get(id);
+        await connectDB();
+
+        const interview = await Interview.findByIdAndUpdate(
+            id,
+            { $set: data },
+            { new: true }
+        );
+
         if (!interview) return null;
 
-        const updatedInterview = { ...interview, ...data };
-        this.interviews.set(id, updatedInterview);
-        return updatedInterview;
+        return {
+            id: interview._id.toString(),
+            userId: interview.userId,
+            type: interview.type,
+            position: interview.position,
+            interviewType: interview.interviewType,
+            flow: interview.flow,
+            cvText: interview.cvText,
+            mode: interview.mode,
+            transcript: interview.transcript,
+            status: interview.status,
+            currentSectionIndex: interview.currentSectionIndex,
+            resumeId: interview.resumeId,
+            difficulty: interview.difficulty,
+            jobDescription: interview.jobDescription,
+            createdAt: interview.createdAt.toISOString(),
+            completedAt: interview.completedAt?.toISOString(),
+            duration: interview.duration,
+            score: interview.score,
+            feedback: interview.feedback,
+        };
     }
 
     async deleteInterview(id: string): Promise<boolean> {
-        const interview = this.interviews.get(id);
-        if (!interview) return false;
+        await connectDB();
 
-        // Remove from user's interview list
-        const userInterviews = this.userInterviews.get(interview.userId);
-        if (userInterviews) {
-            const index = userInterviews.indexOf(id);
-            if (index > -1) {
-                userInterviews.splice(index, 1);
-            }
-        }
-
-        this.interviews.delete(id);
-        return true;
+        const result = await Interview.findByIdAndDelete(id);
+        return !!result;
     }
 
     // Resume methods
-    async createResume(userId: string, content: string): Promise<Resume> {
-        const id = `resume-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const resume: Resume = {
-            id,
+    async createResume(userId: string, content: string, filename?: string, fileSize?: number, mimeType?: string): Promise<Resume> {
+        await connectDB();
+
+        const resume = new Resume({
             userId,
             content,
-            createdAt: new Date().toISOString(),
+            filename,
+            fileSize,
+            mimeType,
+        });
+
+        const savedResume = await resume.save();
+
+        return {
+            id: savedResume._id.toString(),
+            userId: savedResume.userId,
+            content: savedResume.content,
+            filename: savedResume.filename,
+            fileSize: savedResume.fileSize,
+            mimeType: savedResume.mimeType,
+            createdAt: savedResume.createdAt.toISOString(),
         };
-
-        this.resumes.set(id, resume);
-
-        // Track user's resumes
-        if (!this.userResumes.has(userId)) {
-            this.userResumes.set(userId, []);
-        }
-        this.userResumes.get(userId)!.push(resume);
-
-        return resume;
     }
 
     async getResumeById(id: string): Promise<Resume | null> {
-        return this.resumes.get(id) || null;
+        await connectDB();
+
+        const resume = await Resume.findById(id);
+        if (!resume) return null;
+
+        return {
+            id: resume._id.toString(),
+            userId: resume.userId,
+            content: resume.content,
+            filename: resume.filename,
+            fileSize: resume.fileSize,
+            mimeType: resume.mimeType,
+            createdAt: resume.createdAt.toISOString(),
+        };
     }
 
     async getResumesByUserId(userId: string): Promise<Resume[]> {
-        const resumeIds = this.userResumes.get(userId) || [];
-        return resumeIds
-            .map(id => this.resumes.get(id))
-            .filter(Boolean) as Resume[];
+        await connectDB();
+
+        const resumes = await Resume.find({ userId }).sort({ createdAt: -1 });
+
+        return resumes.map(resume => ({
+            id: resume._id.toString(),
+            userId: resume.userId,
+            content: resume.content,
+            filename: resume.filename,
+            fileSize: resume.fileSize,
+            mimeType: resume.mimeType,
+            createdAt: resume.createdAt.toISOString(),
+        }));
     }
 
     // Utility methods
     async clearUserData(userId: string): Promise<void> {
-        // Remove user's interviews
-        const interviewIds = this.userInterviews.get(userId) || [];
-        interviewIds.forEach(id => this.interviews.delete(id));
-        this.userInterviews.delete(userId);
+        await connectDB();
 
-        // Remove user's resumes
-        const resumeIds = this.userResumes.get(userId) || [];
-        resumeIds.forEach(id => this.resumes.delete(id));
-        this.userResumes.delete(userId);
+        await Interview.deleteMany({ userId });
+        await Resume.deleteMany({ userId });
     }
 
     // Get storage stats (for debugging)
-    getStats() {
+    async getStats() {
+        await connectDB();
+
+        const [totalInterviews, totalResumes, totalUsers] = await Promise.all([
+            Interview.countDocuments(),
+            Resume.countDocuments(),
+            Interview.distinct('userId').then(users => users.length),
+        ]);
+
         return {
-            totalInterviews: this.interviews.size,
-            totalResumes: this.resumes.size,
-            totalUsers: this.userInterviews.size,
+            totalInterviews,
+            totalResumes,
+            totalUsers,
         };
     }
 }
 
 // Export singleton instance
-export const storage = new InMemoryStorage();
-
-// Export types for use in other files
-export type { Interview, Resume };
+export const storage = new MongoDBStorage();

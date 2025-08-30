@@ -41,6 +41,7 @@ interface StartInterviewDialogProps {
     cv?: File;
     jobDescription?: string;
     interviewId?: string;
+    useMultiInterviewers?: boolean;
   }) => Promise<void>;
 }
 
@@ -53,6 +54,7 @@ export function StartInterviewDialog({ onStart }: StartInterviewDialogProps) {
   );
   const [cv, setCv] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState("");
+  const [useMultiInterviewers, setUseMultiInterviewers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userName = "there";
@@ -69,6 +71,7 @@ export function StartInterviewDialog({ onStart }: StartInterviewDialogProps) {
           difficulty,
           cv: cv || undefined,
           jobDescription: jobDescription || undefined,
+          useMultiInterviewers,
         });
       } catch (error) {
         setIsSubmitting(false);
@@ -504,6 +507,39 @@ export function StartInterviewDialog({ onStart }: StartInterviewDialogProps) {
                   </div>
                 </div>
               </RadioGroup>
+            </div>
+
+            {/* Multi-Interviewer Toggle */}
+            <div className="space-y-3 sm:space-y-4">
+              <Label className="text-sm font-semibold text-gray-700">
+                Interview Panel
+              </Label>
+              <div className="flex items-center space-x-3 p-4 border-2 border-border rounded-2xl bg-card/80 backdrop-blur-sm">
+                <div className="flex-1">
+                  <div className="font-semibold text-sm sm:text-base text-foreground">
+                    Collaborative AI Panel
+                  </div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">
+                    Two AI interviewers working together - one soft &
+                    supportive, one challenging & analytical
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="multiInterviewers"
+                    checked={useMultiInterviewers}
+                    onChange={(e) => setUseMultiInterviewers(e.target.checked)}
+                    className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                  />
+                  <Label
+                    htmlFor="multiInterviewers"
+                    className="text-sm cursor-pointer"
+                  >
+                    {useMultiInterviewers ? "🤝 Enabled" : "👤 Single"}
+                  </Label>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">
