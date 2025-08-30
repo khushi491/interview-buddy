@@ -1,103 +1,354 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { Mic, MicOff, Play, Square, Send, Brain, Users, Clock, CheckCircle } from 'lucide-react';
+import FeedbackCard from '@/components/FeedbackCard';
+import ProgressCard from '@/components/ProgressCard';
+
+interface InterviewState {
+  isRecording: boolean;
+  isInterviewStarted: boolean;
+  currentQuestion: string;
+  userResponse: string;
+  questions: string[];
+  responses: Array<{ question: string; response: string; feedback: string }>;
+  aiFeedback: string;
+  interviewDuration: number;
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [interviewState, setInterviewState] = useState<InterviewState>({
+    isRecording: false,
+    isInterviewStarted: false,
+    currentQuestion: '',
+    userResponse: '',
+    questions: [],
+    responses: [],
+    aiFeedback: '',
+    interviewDuration: 0
+  });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const [jobRole, setJobRole] = useState('');
+  const [experienceLevel, setExperienceLevel] = useState('entry');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const sampleQuestions = {
+    'software-engineer': [
+      "Can you explain the difference between synchronous and asynchronous programming?",
+      "What is the time complexity of a binary search algorithm?",
+      "How would you handle a memory leak in a web application?",
+      "Explain the concept of dependency injection.",
+      "What are the advantages of using TypeScript over JavaScript?"
+    ],
+    'data-scientist': [
+      "What is the difference between supervised and unsupervised learning?",
+      "How would you handle missing data in a dataset?",
+      "Explain the concept of overfitting and how to prevent it.",
+      "What is cross-validation and why is it important?",
+      "How would you explain a complex machine learning model to a non-technical stakeholder?"
+    ],
+    'product-manager': [
+      "How do you prioritize features in a product roadmap?",
+      "What metrics would you track for a social media app?",
+      "How do you handle conflicting requirements from different stakeholders?",
+      "Describe a time when you had to make a difficult product decision.",
+      "How do you measure the success of a product launch?"
+    ]
+  };
+
+  const startInterview = async () => {
+    if (!jobRole) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Try to get AI-generated questions first
+      const response = await fetch('/api/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobRole,
+          experienceLevel,
+          questionCount: 5
+        }),
+      });
+
+      let questions;
+      if (response.ok) {
+        const data = await response.json();
+        questions = data.questions;
+      } else {
+        // Fallback to sample questions if API fails
+        questions = sampleQuestions[jobRole as keyof typeof sampleQuestions] || sampleQuestions['software-engineer'];
+      }
+
+      setInterviewState(prev => ({
+        ...prev,
+        isInterviewStarted: true,
+        questions,
+        currentQuestion: questions[0] || ''
+      }));
+    } catch (error) {
+      console.error('Error starting interview:', error);
+      // Fallback to sample questions
+      const fallbackQuestions = sampleQuestions[jobRole as keyof typeof sampleQuestions] || sampleQuestions['software-engineer'];
+      setInterviewState(prev => ({
+        ...prev,
+        isInterviewStarted: true,
+        questions: fallbackQuestions,
+        currentQuestion: fallbackQuestions[0] || ''
+      }));
+    }
+    
+    setIsLoading(false);
+  };
+
+  const toggleRecording = () => {
+    setInterviewState(prev => ({
+      ...prev,
+      isRecording: !prev.isRecording
+    }));
+  };
+
+  const submitResponse = async () => {
+    if (!interviewState.userResponse.trim()) return;
+
+    setIsLoading(true);
+    
+    // Simulate AI feedback generation
+    const feedback = await generateAIFeedback(interviewState.currentQuestion, interviewState.userResponse);
+    
+    setInterviewState(prev => ({
+      ...prev,
+      responses: [...prev.responses, {
+        question: prev.currentQuestion,
+        response: prev.userResponse,
+        feedback
+      }],
+      userResponse: '',
+      currentQuestion: prev.questions[prev.responses.length + 1] || '',
+      aiFeedback: feedback
+    }));
+    
+    setIsLoading(false);
+  };
+
+  const generateAIFeedback = async (question: string, response: string): Promise<string> => {
+    try {
+      const apiResponse = await fetch('/api/interview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question,
+          response,
+          jobRole,
+          experienceLevel
+        }),
+      });
+
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        return data.feedback;
+      } else {
+        // Fallback to sample feedback if API fails
+        const feedbacks = [
+          "Excellent answer! You demonstrated strong technical knowledge and clear communication skills.",
+          "Good response, but consider providing more specific examples to strengthen your answer.",
+          "Your answer shows understanding of the concept. Try to elaborate more on the practical applications.",
+          "Well-structured response. You might want to mention industry best practices as well.",
+          "Good foundation, but consider discussing potential challenges and solutions."
+        ];
+        return feedbacks[Math.floor(Math.random() * feedbacks.length)];
+      }
+    } catch (error) {
+      console.error('Error generating AI feedback:', error);
+      // Fallback to sample feedback
+      const feedbacks = [
+        "Excellent answer! You demonstrated strong technical knowledge and clear communication skills.",
+        "Good response, but consider providing more specific examples to strengthen your answer.",
+        "Your answer shows understanding of the concept. Try to elaborate more on the practical applications.",
+        "Well-structured response. You might want to mention industry best practices as well.",
+        "Good foundation, but consider discussing potential challenges and solutions."
+      ];
+      return feedbacks[Math.floor(Math.random() * feedbacks.length)];
+    }
+  };
+
+  const resetInterview = () => {
+    setInterviewState({
+      isRecording: false,
+      isInterviewStarted: false,
+      currentQuestion: '',
+      userResponse: '',
+      questions: [],
+      responses: [],
+      aiFeedback: '',
+      interviewDuration: 0
+    });
+    setJobRole('');
+    setExperienceLevel('entry');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            AI Interview Assistant
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">
+            Practice interviews with AI-powered feedback and guidance
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {!interviewState.isInterviewStarted ? (
+          /* Interview Setup */
+          <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">
+              Start Your Interview
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Job Role
+                </label>
+                <select
+                  value={jobRole}
+                  onChange={(e) => setJobRole(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="">Select a job role</option>
+                  <option value="software-engineer">Software Engineer</option>
+                  <option value="data-scientist">Data Scientist</option>
+                  <option value="product-manager">Product Manager</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Experience Level
+                </label>
+                <select
+                  value={experienceLevel}
+                  onChange={(e) => setExperienceLevel(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="entry">Entry Level</option>
+                  <option value="mid">Mid Level</option>
+                  <option value="senior">Senior Level</option>
+                </select>
+              </div>
+
+              <button
+                onClick={startInterview}
+                disabled={!jobRole || isLoading}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <Play className="h-5 w-5" />
+                )}
+                Start Interview
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Interview Interface */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Question Panel */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Current Question
+                  </h3>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <Clock className="h-4 w-4" />
+                    Question {interviewState.responses.length + 1} of {interviewState.questions.length}
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4">
+                  <p className="text-gray-900 dark:text-white text-lg">
+                    {interviewState.currentQuestion}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <textarea
+                    value={interviewState.userResponse}
+                    onChange={(e) => setInterviewState(prev => ({ ...prev, userResponse: e.target.value }))}
+                    placeholder="Type your response here..."
+                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
+                  />
+                  
+                  <div className="flex gap-3">
+                    <button
+                      onClick={toggleRecording}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+                        interviewState.isRecording 
+                          ? 'bg-red-600 text-white hover:bg-red-700' 
+                          : 'bg-gray-600 text-white hover:bg-gray-700'
+                      }`}
+                    >
+                      {interviewState.isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                      {interviewState.isRecording ? 'Stop Recording' : 'Start Recording'}
+                    </button>
+                    
+                    <button
+                      onClick={submitResponse}
+                      disabled={!interviewState.userResponse.trim() || isLoading}
+                      className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                      Submit Response
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Feedback */}
+              <FeedbackCard 
+                feedback={interviewState.aiFeedback} 
+                isLoading={isLoading && interviewState.userResponse.trim() !== ''}
+              />
+            </div>
+
+                         {/* Sidebar */}
+             <div className="space-y-6">
+               {/* Progress */}
+               <ProgressCard 
+                 questions={interviewState.questions}
+                 completedCount={interviewState.responses.length}
+               />
+
+              {/* Actions */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Actions
+                </h3>
+                <button
+                  onClick={resetInterview}
+                  className="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700"
+                >
+                  Reset Interview
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
