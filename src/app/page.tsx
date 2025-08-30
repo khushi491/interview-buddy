@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Mic, MicOff, Play, Square, Send, Brain, Users, Clock, CheckCircle } from 'lucide-react';
 import FeedbackCard from '@/components/FeedbackCard';
 import ProgressCard from '@/components/ProgressCard';
+import VoiceControls from '@/components/VoiceControls';
+import VoiceAnalysis from '@/components/VoiceAnalysis';
 
 interface InterviewState {
   isRecording: boolean;
@@ -31,6 +33,7 @@ export default function Home() {
   const [jobRole, setJobRole] = useState('');
   const [experienceLevel, setExperienceLevel] = useState('entry');
   const [isLoading, setIsLoading] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
 
   const sampleQuestions = {
     'software-engineer': [
@@ -109,6 +112,14 @@ export default function Home() {
     setInterviewState(prev => ({
       ...prev,
       isRecording: !prev.isRecording
+    }));
+  };
+
+  const handleVoiceTranscriptChange = (transcript: string) => {
+    setVoiceTranscript(transcript);
+    setInterviewState(prev => ({
+      ...prev,
+      userResponse: transcript
     }));
   };
 
@@ -282,26 +293,22 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4">
+                  {/* Voice Controls */}
+                  <VoiceControls
+                    onTranscriptChange={handleVoiceTranscriptChange}
+                    currentTranscript={voiceTranscript}
+                    questionText={interviewState.currentQuestion}
+                  />
+                  
+                  {/* Text Input */}
                   <textarea
                     value={interviewState.userResponse}
                     onChange={(e) => setInterviewState(prev => ({ ...prev, userResponse: e.target.value }))}
-                    placeholder="Type your response here..."
+                    placeholder="Type your response here or use voice recording above..."
                     className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
                   />
                   
                   <div className="flex gap-3">
-                    <button
-                      onClick={toggleRecording}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-                        interviewState.isRecording 
-                          ? 'bg-red-600 text-white hover:bg-red-700' 
-                          : 'bg-gray-600 text-white hover:bg-gray-700'
-                      }`}
-                    >
-                      {interviewState.isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                      {interviewState.isRecording ? 'Stop Recording' : 'Start Recording'}
-                    </button>
-                    
                     <button
                       onClick={submitResponse}
                       disabled={!interviewState.userResponse.trim() || isLoading}
@@ -322,6 +329,13 @@ export default function Home() {
               <FeedbackCard 
                 feedback={interviewState.aiFeedback} 
                 isLoading={isLoading && interviewState.userResponse.trim() !== ''}
+              />
+
+              {/* Voice Analysis */}
+              <VoiceAnalysis
+                transcript={voiceTranscript}
+                jobRole={jobRole}
+                experienceLevel={experienceLevel}
               />
             </div>
 
