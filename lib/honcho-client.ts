@@ -1,12 +1,11 @@
 import { Honcho } from '@honcho-ai/sdk';
 
 // Initialize Honcho client with demo server
-// export const honchoClient = new Honcho({
-//     baseURL: process.env.HONCHO_BASE_URL || 'https://demo.honcho.dev',
-//     environment: process.env.HONCHO_ENVIRONMENT || 'demo'
-// });
-
-export const honchoClient = new Honcho({ baseURL: 'https://demo.honcho.dev', environment: 'demo' });
+// Initialize Honcho client - use either baseURL OR environment, not both
+export const honchoClient = new Honcho({
+    baseURL: 'https://demo.honcho.dev'
+    // Don't set environment when using baseURL
+});
 
 // Interviewer personas
 export const INTERVIEWER_PERSONAS = {

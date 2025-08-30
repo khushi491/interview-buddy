@@ -137,6 +137,17 @@ export default function InterviewPage() {
     useMultiInterviewers: interview.metadata?.useMultiInterviewers || false,
   };
 
+  // Debug logging (can be removed in production)
+  if (process.env.NODE_ENV === "development") {
+    console.log("Interview Configuration:", {
+      interviewId: interview.id,
+      mode: config.mode,
+      useMultiInterviewers: config.useMultiInterviewers,
+      willUseCollaborative:
+        config.useMultiInterviewers && config.mode === "text",
+    });
+  }
+
   // If interview is completed, show completion state
   if (interview.status === "completed") {
     return <InterviewCompletionState interview={interview} />;
